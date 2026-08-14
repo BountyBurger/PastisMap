@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PastisMap</title>
+  <meta name="description"
+    content="Carte interactive collaborative pour suivre et comparer le prix du pastis dans les bars et brasseries en France.">
+
+  <!-- Favicon & Touch Icons -->
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+  <link rel="shortcut icon" href="/images/favicon.png">
+  <link rel="apple-touch-icon" href="/images/favicon.png">
+  <meta property="og:image" content="/images/logo.png">
+  <meta property="og:title" content="PastisMap">
+  <meta property="og:description" content="Carte interactive collaborative pour suivre et comparer le prix du pastis dans les bars et brasseries en France.">
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+
+  <!-- App Wrapper -->
+  <div id="app" class="app-container">
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <img src="/images/logo.png" alt="PastisMap Logo" class="brand-logo-img">
+        <div class="logo-text">
+          <h1>PastisMap</h1>
+          <span class="tagline">Le juste prix de l'apéro 📍</span>
+        </div>
+      </div>
+
+      <!-- Quick Search & Filters -->
+      <div class="nav-search">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="searchInput" placeholder="Chercher un bar, une ville, une marque..."
+            autocomplete="off">
+          <button id="clearSearchBtn" class="btn-icon hidden" title="Effacer la recherche"><i
+              class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <!-- Actions & Mode Badge -->
+      <div class="nav-actions">
+        <button id="geolocateBtn" class="btn btn-secondary btn-pulse" title="Trouver ma position actuelle">
+          <i class="fa-solid fa-crosshairs"></i>
+          <span class="btn-text">Ma Position</span>
+        </button>
+
+        <button id="toggleSidebarBtn" class="btn btn-icon-only" title="Afficher/Masquer la liste">
+          <i class="fa-solid fa-list-ul"></i>
+        </button>
+
+        <!-- Access Mode Badge -->
+        <div id="modeBadge" class="mode-badge mode-readonly" title="Mode de consultation public">
+          <i class="fa-solid fa-eye"></i>
+          <span id="modeText">Mode Lecture</span>
+        </div>
+
+        <button id="adminKeyBtn" class="btn btn-outline-amber btn-sm" title="Déverrouiller le Mode Éditeur">
+          <i class="fa-solid fa-key"></i>
+          <span class="btn-text">Admin</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area: Sidebar + Map -->
+    <main class="main-layout">
+
+      <!-- Sidebar Drawer -->
+      <aside id="sidebar" class="sidebar">
+
+        <!-- Quick Filter Pills -->
+        <div class="filter-section">
+          <div class="filter-title">
+            <span><i class="fa-solid fa-filter"></i> Filtres de prix</span>
+            <span id="barCountBadge" class="badge-count">0 bar</span>
+          </div>
+
+          <div class="filter-pills">
+            <button class="pill-btn active" data-filter="all">Tous</button>
+            <button class="pill-btn pill-cheap" data-filter="cheap">&le; 2.50 €</button>
+            <button class="pill-btn pill-mid" data-filter="mid">2.50 € - 3.50 €</button>
+            <button class="pill-btn pill-expensive" data-filter="expensive">&gt; 3.50 €</button>
+          </div>
+
+          <div class="brand-filter-wrapper">
+            <select id="brandFilterSelect" class="form-select-sm">
+              <option value="all">Toutes les marques (Ricard, 51...)</option>
+              <option value="Ricard">Ricard</option>
+              <option value="Pastis 51">Pastis 51</option>
+              <option value="Pastis Henri Bardouin">Pastis Henri Bardouin</option>
+              <option value="Casanis">Casanis</option>
+              <option value="Duval">Duval</option>
+              <option value="Artisanale">Artisanale</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Global Statistics Card -->
+        <div class="stats-card">
+          <div class="stats-header">
+            <i class="fa-solid fa-chart-pie"></i> Baromètre du Pastis
+          </div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-label">Prix Moyen</span>
+              <span id="statAvgPrice" class="stat-value">-- €</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Moins Cher</span>
+              <span id="statMinPrice" class="stat-value text-emerald">-- €</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Marque N°1</span>
+              <span id="statTopBrand" class="stat-value text-amber">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Add Button (Editor Mode Only) -->
+        <div id="editorActionContainer" class="editor-action-panel hidden">
+          <button id="openAddModalBtn" class="btn btn-primary btn-block">
+            <i class="fa-solid fa-plus-circle"></i> Ajouter un relevé de prix
+          </button>
+        </div>
+
+        <!-- Bars List Container -->
+        <div class="list-section">
+          <div class="list-header">
+            <span id="listTitle">Tous les établissements</span>
+            <select id="sortSelect" class="sort-select">
+              <option value="price-asc">Prix croissant</option>
+              <option value="price-desc">Prix décroissant</option>
+              <option value="name-asc">Nom (A-Z)</option>
+            </select>
+          </div>
+
+          <div id="barsList" class="bars-list">
+            <!-- Dynamic bars rendered here -->
+            <div class="loading-spinner">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Chargement de la carte...
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Credits -->
+        <footer class="sidebar-footer">
+          <img src="/images/logo.png" alt="PastisMap" class="footer-logo-img">
+          <span>PastisMap &copy; 2026 &bull; Carte collaborative anisée ☀️</span>
+        </footer>
+      </aside>
+
+      <!-- Map Container -->
+      <section class="map-wrapper">
+        <div id="map" class="map-container"></div>
+
+        <!-- Click Map Instruction Banner (When placing a point) -->
+        <div id="mapInstructionBanner" class="map-banner hidden">
+          <i class="fa-solid fa-hand-pointer"></i> Cliquez n'importe où sur la carte pour définir l'emplacement du bar
+          <button id="cancelMapPickBtn" class="btn btn-sm btn-dark"><i class="fa-solid fa-xmark"></i> Annuler</button>
+        </div>
+
+        <!-- Map Floating Legend -->
+        <div class="map-legend">
+          <div class="legend-item"><span class="legend-dot cheap"></span> &le; 2.50 €</div>
+          <div class="legend-item"><span class="legend-dot mid"></span> 2.50 - 3.50 €</div>
+          <div class="legend-item"><span class="legend-dot expensive"></span> &gt; 3.50 €</div>
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <!-- MODAL: ADD / EDIT BAR -->
+  <div id="barModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle"><i class="fa-solid fa-glass-water"></i> Ajouter un relevé de Pastis</h3>
+        <button id="closeModalBtn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="barForm" class="modal-form">
+        <input type="hidden" id="barId" value="">
+
+        <div class="form-group">
+          <label for="barName">Nom de l'établissement <span class="required">*</span></label>
+          <input type="text" id="barName" placeholder="Ex: Le Bar de la Marine" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="barBrand">Marque de Pastis <span class="required">*</span></label>
+            <select id="barBrand" required>
+              <option value="Ricard">Ricard</option>
+              <option value="Pastis 51">Pastis 51</option>
+              <option value="Pastis Henri Bardouin">Pastis Henri Bardouin</option>
+              <option value="Casanis">Casanis</option>
+              <option value="Duval">Duval</option>
+              <option value="Artisanale">Artisanale</option>
+              <option value="Autre">Autre (préciser)...</option>
+            </select>
+          </div>
+
+          <div class="form-group col-half hidden" id="customBrandGroup">
+            <label for="customBrand">Nom de la marque</label>
+            <input type="text" id="customBrand" placeholder="Ex: Pastis de Marseille">
+          </div>
+
+          <div class="form-group col-half">
+            <label for="barPrice">Prix du Pastis (€) <span class="required">*</span></label>
+            <div class="input-prefix-wrapper">
+              <input type="number" id="barPrice" step="0.05" min="0.50" max="25.00" placeholder="2.50" required>
+              <span class="input-suffix">€</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="barCity">Ville / Commune</label>
+            <input type="text" id="barCity" placeholder="Ex: Marseille">
+          </div>
+          <div class="form-group col-half">
+            <label for="barAddress">Adresse complète</label>
+            <input type="text" id="barAddress" placeholder="Ex: 15 Quai Rive Neuve">
+          </div>
+        </div>
+
+        <!-- Coordonnées GPS -->
+        <div class="form-group">
+          <label>Position géographique <span class="required">*</span></label>
+          <div class="geo-picker-box">
+            <div class="coords-display">
+              <span>Lat: <strong id="displayLat">--</strong></span>
+              <span>Lng: <strong id="displayLng">--</strong></span>
+            </div>
+            <div class="geo-buttons">
+              <button type="button" id="pickLocationOnMapBtn" class="btn btn-sm btn-outline-amber">
+                <i class="fa-solid fa-map-pin"></i> Placer sur la carte
+              </button>
+              <button type="button" id="useCurrentLocationBtn" class="btn btn-sm btn-emerald">
+                <i class="fa-solid fa-location-crosshairs"></i> Ma position
+              </button>
+            </div>
+          </div>
+          <input type="hidden" id="barLat" required>
+          <input type="hidden" id="barLng" required>
+        </div>
+
+        <div class="form-group">
+          <label for="barNotes">Remarques & Ambiance</label>
+          <textarea id="barNotes" rows="3"
+            placeholder="Ex: Servie avec cacahuètes, grande terrasse ombragée..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="cancelFormBtn" class="btn btn-secondary">Annuler</button>
+          <button type="submit" id="saveBarBtn" class="btn btn-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: BAR DETAILS (PUBLIC / ADMIN) -->
+  <div id="detailModal" class="modal-overlay hidden">
+    <div class="modal-card modal-detail-card">
+      <div class="detail-banner">
+        <div class="detail-price-badge" id="detailPriceBadge">-- €</div>
+        <button id="closeDetailModalBtn" class="modal-close modal-close-white"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="detail-body">
+        <h2 id="detailBarName" class="detail-title">Nom du bar</h2>
+        <div class="detail-brand-tag" id="detailBrandTag"><i class="fa-solid fa-glass-water"></i> Ricard</div>
+
+        <div class="detail-info-list">
+          <div class="detail-info-item">
+            <i class="fa-solid fa-location-dot text-amber"></i>
+            <span id="detailAddress">Adresse non spécifiée</span>
+          </div>
+          <div class="detail-info-item">
+            <i class="fa-solid fa-calendar-day text-slate"></i>
+            <span>Dernière mise à jour: <strong id="detailDate">--</strong></span>
+          </div>
+          <div id="detailNotesContainer" class="detail-notes-box">
+            <i class="fa-solid fa-comment-dots text-amber"></i>
+            <p id="detailNotes">Pas de remarques particulières.</p>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <a id="detailDirectionsBtn" href="#" target="_blank" rel="noopener noreferrer"
+            class="btn btn-outline-slate btn-block">
+            <i class="fa-solid fa-diamond-turn-right"></i> Itinéraire Google Maps
+          </a>
+
+          <!-- Admin Buttons inside details -->
+          <div id="detailAdminActions" class="detail-admin-actions hidden">
+            <button id="editDetailBarBtn" class="btn btn-warning">
+              <i class="fa-solid fa-pen-to-square"></i> Modifier
+            </button>
+            <button id="deleteDetailBarBtn" class="btn btn-danger">
+              <i class="fa-solid fa-trash-can"></i> Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADMIN TOKEN UNLOCK -->
+  <div id="adminTokenModal" class="modal-overlay hidden">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-shield-halved text-amber"></i> Déverrouiller le Mode Éditeur</h3>
+        <button id="closeAdminTokenModalBtn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted">
+          Saisissez le token secret d'administration pour activer l'ajout, la modification et la suppression de points.
+        </p>
+        <div class="form-group margin-top-md">
+          <label for="adminTokenInput">Token Secret Admin</label>
+          <input type="password" id="adminTokenInput" placeholder="Entrez le token secret..." autocomplete="off">
+          <div id="tokenErrorMsg" class="form-error hidden">Token invalide. Veuillez réessayer.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelTokenBtn" class="btn btn-secondary">Annuler</button>
+        <button id="submitTokenBtn" class="btn btn-primary">
+          <i class="fa-solid fa-unlock"></i> Valider
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- App JavaScript Modules -->
+  <script src="/js/admin.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/map.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+
+</html>
