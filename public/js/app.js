@@ -14,8 +14,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeSortOption = 'price-asc';
 
   // --- INITIALIZATION ---
-  await AdminModule.init();
-  MapModule.init('map', handleBarSelected);
+  const [config] = await Promise.all([
+    loadConfig(),
+    AdminModule.init()
+  ]);
+  MapModule.init('map', handleBarSelected, config && config.cartomapApiKey);
 
   await loadBarsData();
   await loadStatsData();
@@ -23,6 +26,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
 
   // --- API DATA FETCHING ---
+
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/config');
+      if (!res.ok) throw new Error('Erreur API Config');
+      return await res.json();
+    } catch (e) {
+      console.warn('Configuration non chargée ou par défaut:', e);
+      return { cartomapApiKey: '' };
+    }
+  }
 
   async function loadBarsData() {
     try {

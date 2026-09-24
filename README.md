@@ -41,6 +41,7 @@ Le fichier `.env` à la racine contient la configuration :
 ```env
 PORT=3000
 ADMIN_TOKEN=put-a-really-long-token-here
+CARTOMAP_API_KEY=your-cartomap-api-key-here
 ```
 
 ### 3. Lancement du serveur

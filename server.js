@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -7,6 +7,7 @@ const db = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'pastis-secret-2026';
+const CARTOMAP_API_KEY = process.env.CARTOMAP_API_KEY || process.env.CARTO_API_KEY || '';
 
 // Middleware
 app.use(cors());
@@ -34,6 +35,13 @@ const adminAuth = (req, res, next) => {
 };
 
 // --- ROUTES PUBLIQUES (LECTURE) ---
+
+// Obtenir la configuration publique (clés API pour services tiers comme Carto)
+app.get('/api/config', (req, res) => {
+  res.json({
+    cartomapApiKey: CARTOMAP_API_KEY
+  });
+});
 
 // Obtenir tous les bars
 app.get('/api/bars', async (req, res) => {

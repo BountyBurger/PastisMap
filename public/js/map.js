@@ -18,8 +18,11 @@ const MapModule = (() => {
 
   /**
    * Initializes Leaflet Map
+   * @param {string} mapContainerId
+   * @param {function} onMarkerClick
+   * @param {string} [apiKey]
    */
-  function init(mapContainerId, onMarkerClick) {
+  function init(mapContainerId, onMarkerClick, apiKey = '') {
     if (map) return;
 
     // Create map instance
@@ -31,7 +34,12 @@ const MapModule = (() => {
     L.control.zoom({ position: 'topright' }).addTo(map);
 
     // Add CartoDB Voyager tiles (clean, light, perfect for pastis map pins!)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const key = apiKey || window.CARTOMAP_API_KEY || '';
+    const tileUrl = key
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(key.trim())}`
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
+    L.tileLayer(tileUrl, {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19
