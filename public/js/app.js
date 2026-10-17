@@ -25,6 +25,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupEventListeners();
 
+  // On mobile devices, collapse the sidebar initially so the map is visible right away
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.add('collapsed');
+  }
+
+  // Prevent unwanted viewport scroll shifts on mobile Chrome
+  window.addEventListener('scroll', () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }, { passive: true });
+
   // --- API DATA FETCHING ---
 
   async function loadConfig() {

@@ -25,10 +25,35 @@ const MapModule = (() => {
   function init(mapContainerId, onMarkerClick, apiKey = '') {
     if (map) return;
 
+    // Prevent Leaflet controls from triggering focus scroll shifts on mobile browsers
+    if (typeof L !== 'undefined' && L.Control && L.Control.prototype._refocusOnMap) {
+      L.Control.prototype._refocusOnMap = function (ev) {
+        if (this._map && this._map.getContainer()) {
+          try {
+            this._map.getContainer().focus({ preventScroll: true });
+          } catch (e) {}
+        }
+      };
+    }
+
+    const isMobile = ('ontouchstart' in window) || (window.innerWidth <= 768);
+
     // Create map instance
     map = L.map(mapContainerId, {
-      zoomControl: false
+      zoomControl: false,
+      keyboard: !isMobile
     }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+    // Ensure map container does not cause browser focus-scroll on touch
+    const container = document.getElementById(mapContainerId);
+    if (container) {
+      if (isMobile) {
+        container.removeAttribute('tabindex');
+      }
+      container.addEventListener('focus', () => {
+        window.scrollTo(0, 0);
+      }, { passive: true });
+    }
 
     // Add Leaflet zoom control at top-right
     L.control.zoom({ position: 'topright' }).addTo(map);
@@ -48,8 +73,18 @@ const MapModule = (() => {
     // Layer group for bar markers
     markersLayer = L.layerGroup().addTo(map);
 
-    // Map click event listener (used for location picking)
+    // Map click event listener (used for location picking and responsive behavior)
     map.on('click', (e) => {
+      window.scrollTo(0, 0);
+
+      // Auto-collapse sidebar on mobile when tapping on map
+      if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar && !sidebar.classList.contains('collapsed')) {
+          sidebar.classList.add('collapsed');
+        }
+      }
+
       if (isPickMode && onLocationPickedCallback) {
         setPickLocation(e.latlng.lat, e.latlng.lng);
         onLocationPickedCallback(e.latlng.lat, e.latlng.lng);
